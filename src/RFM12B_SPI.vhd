@@ -22,6 +22,8 @@ use ieee.std_logic_unsigned.all;
 --! The command is the x"B000", the FIFO read command.
 --! This component implements the additional 8 bit shift for just
 --! this command.
+--! \image html RFM12B_SPI.png
+--! \image latex RFM12B_SPI.png
 entity RFM12B_SPI is
   generic(
     GEN_SysClockinHz      : integer := 200000000;                 --! the System Clock feeded into iClk in Hz
@@ -40,12 +42,12 @@ entity RFM12B_SPI is
     icReset         :  in std_logic;                              --! active high reset of the RFM12B, has to be high at least 5ms
 
     -- RFM12B Interface                                           --! the interface signals to connect to the RFM12B
-    odSDI           : out std_logic;
-    idSDO           :  in std_logic;
-    oSCLK           : out std_logic;
-    ocSELn          : out std_logic;
-    icINTn          :  in std_logic;
-    ocResetN        : out std_logic;
+    odSDI           : out std_logic;                              --! SPI MOSI signal, shifts data into the RFM12B
+    idSDO           :  in std_logic;                              --! SPI MISO signal, shits data outof the RFM12B, has to be set as PULLUP
+    oSCLK           : out std_logic;                              --! Clock to shift the data
+    ocSELn          : out std_logic;                              --! active low chip select signal
+    icINTn          :  in std_logic;                              --! active low interrupt input from the RFM12B
+    ocResetN        : out std_logic;                              --! active low reset signal to the RFM12B
 
     -- System interface
     iClk            :  in std_logic;                              --! standard system clock
@@ -89,14 +91,12 @@ architecture arch of RFM12B_SPI is
   end component spiMaster;
 
 
-  signal scSPIclockEn   : std_logic;
-  signal sdByteRead     : std_logic_vector(7 downto 0);
-  signal sdByteWrite    : std_logic_vector(7 downto 0);
-  signal scStart        : std_logic;
-  signal scReadyToSend  : std_logic;
+  signal scSPIclockEn   : std_logic;                      --! signal for the SPI Clock Enable, used for generating the correct SPI Clock
+  signal sdByteRead     : std_logic_vector(7 downto 0);   --! returning 8bit of SPI data from the SPI Master
+  signal sdByteWrite    : std_logic_vector(7 downto 0);   --! 8bit to shift into the SPI Slave
+  signal scStart        : std_logic;                      --! start the SPI transfer
+  signal scReadyToSend  : std_logic;                      --! SPI component is ready for new transfer
 
-
-  signal srCounter          : integer := 0;
 
   signal srDataIN           : std_logic_vector(15 downto 0);
   signal srDataTemp         : std_logic_vector(7 downto 0);
@@ -105,9 +105,9 @@ architecture arch of RFM12B_SPI is
   --
   -- FSM
   --
-  type t_states is (st_start, st_idle, st_write0, st_write1, st_wait0, st_wait1, st_valid);
-  signal srCurrentState : t_states;
-  signal srNextState    : t_states;
+  type t_states is (st_start, st_idle, st_write0, st_write1, st_wait0, st_wait1, st_valid); --! all possible states of the FSM
+  signal srCurrentState : t_states;                                                         --! signal identifying the current state of the FSM
+  signal srNextState    : t_states;                                                         --! signal for identifying a possible next state
 
 begin
 
@@ -161,7 +161,6 @@ begin
         ocSELn          <= '1';
         scStart         <= '0';
         sdByteWrite     <= (others => '0');
-        srCounter       <= 0;
         ocValid         <= '0';
         srDataTemp      <= (others => '0');
         srDataIN        <= (others => '0');
@@ -178,15 +177,14 @@ begin
         case srCurrentState is
 
 
-          when st_start       =>
+          when st_start       =>  --! just start state, wait for SPI-Master to become ready
                                 if (scReadyToSend = '1') then
-                                    srCounter       <= 0;
                                     ocSELn          <= '1';
                                     srRead          <= '0';
                                     srCurrentState  <= st_idle;
                                  end if;
 
-          when st_idle        =>
+          when st_idle        =>  --! wait for a command transfer
                                   srCurrentState  <= st_idle;
                                   srRead          <= '0';
 
@@ -200,14 +198,14 @@ begin
                                       end if;
                                   end if;
 
-          when st_write0       =>
+          when st_write0       => --! write the first byte of the command
                                   sdByteWrite     <= srDataWrite(15 downto 8);
                                   ocSELn          <= '0';
                                   scStart         <= '1';
 
                                   srNextState     <= st_write1;
                                   srCurrentState  <= st_wait0;
-          when st_write1       =>
+          when st_write1       => --! write the second byte of the command
                                   sdByteWrite     <= srDataWrite( 7 downto 0);
                                   scStart         <= '1';
                                   ocSELn          <= '0';
