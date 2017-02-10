@@ -1,0 +1,3 @@
+VHDL_SRC +=src/RFM12B_SPI.vhd
+VHDL_SRC +=src/RFM12B_PHY.vhd
+VHDL_PKG +=src/RFM12B_PKG.vhd
