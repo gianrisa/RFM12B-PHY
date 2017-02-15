@@ -22,8 +22,7 @@ use ieee.std_logic_unsigned.all;
 --! The command is the x"B000", the FIFO read command.
 --! This component implements the additional 8 bit shift for just
 --! this command.
---! \image html RFM12B_SPI.png
---! \image latex RFM12B_SPI.png
+--! \image html RFM12BSPI.png
 entity RFM12B_SPI is
   generic(
     GEN_SysClockinHz      : integer := 200000000;                 --! the System Clock feeded into iClk in Hz
