@@ -194,7 +194,7 @@ architecture arch of RFM12B_PHY is
   -- FSM
   --
   type t_states is (st_start, st_reset, st_idle, st_init, st_delay_200, st_delay_200_wait, st_read_status, st_read_data,
-                    st_clear_fifo, st_accept_data, st_wait, st_sleep, st_transmit_wait, st_transmit, st_transmit_on);
+                    st_clear_fifo, st_accept_data, st_wait, st_sleep, st_transmit_wait, st_transmit, st_transmit_on, st_transmit_end);
 
   signal srCurrentState : t_states;
   signal srNextState    : t_states;
@@ -527,12 +527,22 @@ begin
 
                                   srNextState         <= st_transmit;
                                   srCurrentState      <= st_wait;
-                                elsif(icFrame='0') then
-                                  sdRFM12Binstruction <= c_RFM12B_RECV_ON;
+                                elsif(icFrame='0' and srINT='1') then
+                                  sdRFM12Binstruction <= x"B8" & x"AA";
                                   scRFM12Bwe          <= '1';
-                                  srNextState         <= st_clear_fifo;
+                                  srNextState         <= st_transmit_end;
                                   srCurrentState      <= st_wait;
                                 end if;
+
+         when st_transmit_end   =>
+                                   srCurrentState        <= st_transmit_end;
+
+                                   if(srINT='1') then
+                                     sdRFM12Binstruction <= c_RFM12B_RECV_ON;
+                                     scRFM12Bwe          <= '1';
+                                     srNextState         <= st_clear_fifo;
+                                     srCurrentState      <= st_wait;
+                                   end if;
 
          when st_sleep      =>
                               srCurrentState    <= st_sleep;
