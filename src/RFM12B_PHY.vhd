@@ -35,8 +35,7 @@ use work.RFM12B_PKG.all;
 
 --! The RFM12B_PHY is responsible for receiving and transmitting one byte through the RFM12B
 --! The operating mode of the RFM12B is configurable through the generics
---! \image html RFM12B_PHY.png "" width=2cm
---! \image latex RFM12B_PHY.png "" width=2cm
+--! \image html RFM12BPHY.png
 entity RFM12B_PHY is
   generic(
     GEN_SysClockinHz      : integer                       := 200000000;   --! the system clock frequency in Hz
